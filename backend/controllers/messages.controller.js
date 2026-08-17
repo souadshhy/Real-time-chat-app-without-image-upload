@@ -1,0 +1,45 @@
+import Conversation from '../models/conversation.model.js'
+import Message from '../models/message.model.js'
+
+export const sendMessage = async (req,res)=>{
+    try {
+        const {message}= req.body;
+        const {id:receiverId} = req.params;
+        const senderId = req.user._id;
+        let conversation = await Conversation.findOne({
+            participants: {$all : [receiverId, senderId]}
+        })
+        if(!conversation){
+            conversation = await Conversation.create({
+                participants: [receiverId, senderId] 
+            });  
+        }
+        const newMessage = new Message ({
+            senderId,
+            receiverId,
+            message
+        })
+        if(newMessage){
+            conversation.messages.push(newMessage._id)
+        }
+        await Promise.all([newMessage.save(), conversation.save()])
+        return res.status(201).json(newMessage);
+    } catch (error) {
+        return res.status(500).json({error:"Error in sending message."})
+    }
+}
+export const getMessages = async (req, res)=>{
+    try {
+      const {id:userToChatId} = req.params;  
+      const senderId= req.user._id
+
+      const conversation = await Conversation.findOne({
+        participants:{$all:[userToChatId, senderId]}
+      }).populate('messages')
+      const messages = conversation.messages;
+      res.status(200).json(messages)
+    } catch (error) {
+     return res.status(500).json({error:"Error in sending message."})
+    
+ }
+}
